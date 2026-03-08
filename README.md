@@ -14,6 +14,7 @@ datra/
 ├── windows/
 │   ├── receiver_windows.py
 │   └── icon.png
+│   └── icon.ico
 ├── android/
 │   └── DaTra.apk
 └── README.md
