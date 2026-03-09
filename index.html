@@ -1,1006 +1,1280 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>DaTra – Bluetooth File Transfer</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:      #1e1e2e;
-      --surface: #2a2a3e;
-      --blue:    #89b4fa;
-      --green:   #a6e3a1;
-      --text:    #cdd6f4;
-      --subtext: #6c7086;
-      --border:  #313244;
-    }
-
-    html { scroll-behavior: smooth; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'JetBrains Mono', monospace;
-      overflow-x: hidden;
-    }
-
-    /* ── NOISE OVERLAY ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ── NAV ── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 48px;
-      background: rgba(30,30,46,0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .nav-logo {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.2rem;
-      font-weight: 700;
-      color: var(--blue);
-      letter-spacing: 0.1em;
-    }
-
-    .nav-logo span { color: var(--green); }
-
-    nav a {
-      color: var(--subtext);
-      text-decoration: none;
-      font-size: 0.78rem;
-      letter-spacing: 0.08em;
-      transition: color 0.2s;
-    }
-
-    nav a:hover { color: var(--blue); }
-
-    .nav-links { display: flex; gap: 32px; }
-
-    /* ── HERO ── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 120px 24px 80px;
-      position: relative;
-    }
-
-    .hero-glow {
-      position: absolute;
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(137,180,250,0.08) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .hero-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 6px 16px;
-      font-size: 0.72rem;
-      color: var(--subtext);
-      letter-spacing: 0.1em;
-      margin-bottom: 32px;
-    }
-
-    .hero-badge::before {
-      content: '';
-      width: 6px; height: 6px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .hero h1 {
-      font-family: 'Space Mono', monospace;
-      font-size: clamp(3rem, 10vw, 6.5rem);
-      font-weight: 700;
-      color: var(--blue);
-      letter-spacing: -0.02em;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-
-    .hero h1 span { color: var(--green); }
-
-    .hero-sub {
-      font-size: clamp(0.8rem, 2vw, 1rem);
-      color: var(--subtext);
-      letter-spacing: 0.15em;
-      margin-bottom: 28px;
-      text-transform: uppercase;
-    }
-
-    .hero-desc {
-      max-width: 520px;
-      font-size: 0.92rem;
-      color: var(--text);
-      line-height: 1.8;
-      margin-bottom: 48px;
-      opacity: 0.85;
-    }
-
-    .hero-buttons {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 28px;
-      border-radius: 6px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.82rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-decoration: none;
-      transition: all 0.2s;
-      cursor: pointer;
-      border: none;
-    }
-
-    .btn-primary {
-      background: var(--blue);
-      color: var(--bg);
-    }
-
-    .btn-primary:hover {
-      background: #a0c4ff;
-      transform: translateY(-1px);
-      box-shadow: 0 8px 24px rgba(137,180,250,0.25);
-    }
-
-    .btn-secondary {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      border-color: var(--blue);
-      color: var(--blue);
-      transform: translateY(-1px);
-    }
-
-    /* ── SCROLL INDICATOR ── */
-    .scroll-hint {
-      position: absolute;
-      bottom: 40px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      color: var(--subtext);
-      font-size: 0.7rem;
-      letter-spacing: 0.1em;
-      animation: fadeUp 1s ease 1s both;
-    }
-
-    .scroll-line {
-      width: 1px;
-      height: 40px;
-      background: linear-gradient(to bottom, var(--subtext), transparent);
-      animation: grow 1.5s ease infinite;
-    }
-
-    @keyframes grow {
-      0% { transform: scaleY(0); transform-origin: top; }
-      50% { transform: scaleY(1); transform-origin: top; }
-      51% { transform: scaleY(1); transform-origin: bottom; }
-      100% { transform: scaleY(0); transform-origin: bottom; }
-    }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(10px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── SECTION SHARED ── */
-    section {
-      position: relative;
-      z-index: 1;
-      padding: 100px 24px;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .section-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.2em;
-      color: var(--blue);
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-
-    .section-title {
-      font-family: 'Space Mono', monospace;
-      font-size: clamp(1.6rem, 4vw, 2.4rem);
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 48px;
-      line-height: 1.2;
-    }
-
-    .section-title span { color: var(--green); }
-
-    /* ── FEATURES ── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 16px;
-    }
-
-    .feature-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 28px 24px;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-
-    .feature-card:hover {
-      border-color: var(--blue);
-      transform: translateY(-3px);
-    }
-
-    .feature-icon {
-      font-size: 1.6rem;
-      margin-bottom: 16px;
-    }
-
-    .feature-card h3 {
-      font-size: 0.9rem;
-      font-weight: 700;
-      color: var(--blue);
-      margin-bottom: 8px;
-      letter-spacing: 0.05em;
-    }
-
-    .feature-card p {
-      font-size: 0.8rem;
-      color: var(--subtext);
-      line-height: 1.7;
-    }
-
-    /* ── DEMO ── */
-    .demo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 24px;
-    }
-
-    .demo-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      transition: border-color 0.2s;
-    }
-
-    .demo-card:hover { border-color: var(--blue); }
-
-    .demo-screen {
-      background: var(--bg);
-      padding: 24px;
-      min-height: 220px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-bottom: 1px solid var(--border);
-      position: relative;
-    }
-
-    /* Simulated app window */
-    .mock-window {
-      width: 100%;
-      max-width: 320px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      font-size: 0.72rem;
-    }
-
-    .mock-titlebar {
-      background: #1a1a2e;
-      padding: 8px 12px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .mock-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-    }
-
-    .mock-title {
-      margin-left: 8px;
-      color: var(--subtext);
-      font-size: 0.68rem;
-      letter-spacing: 0.05em;
-    }
-
-    .mock-tabs {
-      display: flex;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .mock-tab {
-      padding: 7px 16px;
-      font-size: 0.68rem;
-      color: var(--subtext);
-      border-right: 1px solid var(--border);
-    }
-
-    .mock-tab.active {
-      background: var(--blue);
-      color: var(--bg);
-      font-weight: 700;
-    }
-
-    .mock-body { padding: 14px; }
-
-    .mock-label {
-      font-size: 0.6rem;
-      color: var(--subtext);
-      letter-spacing: 0.08em;
-      margin-bottom: 5px;
-    }
-
-    .mock-field {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      padding: 7px 10px;
-      color: var(--subtext);
-      font-size: 0.68rem;
-      margin-bottom: 10px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .mock-btn {
-      display: inline-block;
-      padding: 6px 14px;
-      border-radius: 4px;
-      font-size: 0.68rem;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      margin-bottom: 10px;
-    }
-
-    .mock-btn.blue { background: var(--blue); color: var(--bg); }
-    .mock-btn.green { background: var(--green); color: var(--bg); }
-
-    .mock-status {
-      font-size: 0.65rem;
-      color: var(--green);
-      padding: 4px 0;
-    }
-
-    .mock-progress {
-      height: 5px;
-      background: var(--border);
-      border-radius: 999px;
-      overflow: hidden;
-      margin-top: 6px;
-    }
-
-    .mock-progress-fill {
-      height: 100%;
-      background: var(--blue);
-      border-radius: 999px;
-    }
-
-    /* Android mock */
-    .mock-android {
-      width: 160px;
-      background: var(--surface);
-      border: 2px solid var(--border);
-      border-radius: 20px;
-      overflow: hidden;
-      font-size: 0.65rem;
-      box-shadow: 0 0 0 6px #111122;
-    }
-
-    .mock-android-status {
-      background: #111122;
-      padding: 8px 12px 4px;
-      font-size: 0.55rem;
-      color: var(--subtext);
-      text-align: right;
-    }
-
-    .mock-android-header {
-      background: var(--blue);
-      color: var(--bg);
-      font-weight: 700;
-      font-size: 0.72rem;
-      padding: 10px 12px;
-      letter-spacing: 0.05em;
-    }
-
-    .mock-android-body { padding: 12px; }
-
-    .mock-android-section {
-      font-size: 0.6rem;
-      color: var(--blue);
-      letter-spacing: 0.1em;
-      margin-bottom: 6px;
-      font-weight: 700;
-    }
-
-    .mock-android-btn {
-      display: block;
-      width: 100%;
-      padding: 6px;
-      border-radius: 4px;
-      font-size: 0.62rem;
-      font-weight: 700;
-      text-align: center;
-      margin-bottom: 6px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .mock-android-btn.blue { background: var(--blue); color: var(--bg); }
-    .mock-android-btn.green { background: var(--green); color: var(--bg); }
-
-    .mock-android-list {
-      background: var(--bg);
-      border-radius: 4px;
-      padding: 5px 7px;
-      color: var(--subtext);
-      font-size: 0.58rem;
-      margin-bottom: 6px;
-      min-height: 28px;
-    }
-
-    .mock-android-status-text {
-      font-size: 0.58rem;
-      color: var(--green);
-    }
-
-    .demo-caption {
-      padding: 16px 20px;
-    }
-
-    .demo-caption h3 {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 4px;
-    }
-
-    .demo-caption p {
-      font-size: 0.75rem;
-      color: var(--subtext);
-      line-height: 1.6;
-    }
-
-    /* ── PLATFORMS ── */
-    .platforms {
-      display: flex;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .platform-pill {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 14px 20px;
-      flex: 1;
-      min-width: 160px;
-      transition: border-color 0.2s;
-    }
-
-    .platform-pill:hover { border-color: var(--green); }
-
-    .platform-pill span:first-child { font-size: 1.4rem; }
-
-    .platform-pill-text { font-size: 0.8rem; color: var(--text); font-weight: 600; }
-    .platform-pill-sub  { font-size: 0.68rem; color: var(--subtext); }
-
-    /* ── HOW IT WORKS ── */
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 0;
-      position: relative;
-    }
-
-    .steps::before {
-      content: '';
-      position: absolute;
-      top: 28px;
-      left: 5%;
-      right: 5%;
-      height: 1px;
-      background: linear-gradient(to right, transparent, var(--border), var(--border), transparent);
-    }
-
-    .step {
-      padding: 0 16px;
-      text-align: center;
-    }
-
-    .step-num {
-      width: 56px; height: 56px;
-      border-radius: 50%;
-      background: var(--surface);
-      border: 1px solid var(--blue);
-      color: var(--blue);
-      font-family: 'Space Mono', monospace;
-      font-size: 1.1rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .step h3 {
-      font-size: 0.82rem;
-      font-weight: 700;
-      color: var(--text);
-      margin-bottom: 6px;
-    }
-
-    .step p {
-      font-size: 0.74rem;
-      color: var(--subtext);
-      line-height: 1.6;
-    }
-
-    /* ── CTA ── */
-    .cta-section {
-      text-align: center;
-      padding: 100px 24px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .cta-box {
-      max-width: 600px;
-      margin: 0 auto;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 56px 40px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-box::before {
-      content: '';
-      position: absolute;
-      top: -60px; left: 50%;
-      transform: translateX(-50%);
-      width: 300px; height: 300px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(137,180,250,0.1) 0%, transparent 70%);
-      pointer-events: none;
-    }
-
-    .cta-box h2 {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.8rem;
-      color: var(--text);
-      margin-bottom: 12px;
-    }
-
-    .cta-box p {
-      color: var(--subtext);
-      font-size: 0.85rem;
-      margin-bottom: 32px;
-      line-height: 1.7;
-    }
-
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 32px 48px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      position: relative;
-      z-index: 1;
-      gap: 8px;
-    }
-
-    footer .logo {
-      font-family: 'Space Mono', monospace;
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--blue);
-    }
-
-    footer .logo span { color: var(--green); }
-
-    footer p {
-      font-size: 0.72rem;
-      color: var(--subtext);
-    }
-
-    /* ── DIVIDER ── */
-    .divider {
-      width: 100%;
-      height: 1px;
-      background: linear-gradient(to right, transparent, var(--border), transparent);
-      position: relative;
-      z-index: 1;
-    }
-
-    /* ── ANIMATIONS ── */
-    .fade-in {
-      opacity: 0;
-      transform: translateY(24px);
-      transition: opacity 0.6s ease, transform 0.6s ease;
-    }
-
-    .fade-in.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    /* ── RESPONSIVE ── */
-    @media (max-width: 600px) {
-      nav { padding: 16px 20px; }
-      .nav-links { gap: 20px; }
-      .steps::before { display: none; }
-      footer { flex-direction: column; text-align: center; }
-    }
-  </style>
-</head>
-<body>
-
-<!-- ── NAV ── -->
-<nav>
-  <div class="nav-logo">Da<span>Tra</span></div>
-  <div class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#demo">Demo</a>
-    <a href="#how">How it works</a>
-    <a href="https://github.com" target="_blank">GitHub ↗</a>
-  </div>
-</nav>
-
-<!-- ── HERO ── -->
-<div class="hero">
-  <div class="hero-glow"></div>
-
-  <div class="hero-badge">Open Source · No Cloud · No Account</div>
-
-  <h1>Da<span>Tra</span></h1>
-  <p class="hero-sub">Bluetooth File Transfer</p>
-
-  <p class="hero-desc">
-    Transfer files between your Android phone and your laptop directly over Bluetooth.
-    No internet connection, no third-party services, no setup hassle.
-  </p>
-
-  <div class="hero-buttons">
-    <a href="https://github.com" target="_blank" class="btn btn-primary">
-      ↓ &nbsp;Download
-    </a>
-    <a href="#demo" class="btn btn-secondary">
-      View Demo
-    </a>
-  </div>
-
-  <div class="scroll-hint">
-    <div class="scroll-line"></div>
-    scroll
-  </div>
-</div>
-
-<div class="divider"></div>
-
-<!-- ── PLATFORMS ── -->
-<section style="padding-top: 80px; padding-bottom: 60px;">
-  <p class="section-label fade-in">Platforms</p>
-  <div class="platforms fade-in">
-    <div class="platform-pill">
-      <img src="https://cdn.simpleicons.org/linux/cdd6f4" width="32" height="32" alt="Linux"/>
-      <div>
-        <div class="platform-pill-text">Linux</div>
-        <div class="platform-pill-sub">Python + Tkinter</div>
-      </div>
-    </div>
-    <div class="platform-pill">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="#00adef" xmlns="http://www.w3.org/2000/svg"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.551H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-      <div>
-        <div class="platform-pill-text">Windows</div>
-        <div class="platform-pill-sub">Python + Tkinter</div>
-      </div>
-    </div>
-    <div class="platform-pill">
-      <img src="https://cdn.simpleicons.org/android/a6e3a1" width="32" height="32" alt="Android"/>
-      <div>
-        <div class="platform-pill-text">Android</div>
-        <div class="platform-pill-sub">Java · APK ready</div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ── FEATURES ── -->
-<section id="features">
-  <p class="section-label fade-in">Features</p>
-  <h2 class="section-title fade-in">Simple by <span>design</span></h2>
-
-  <div class="features-grid">
-    <div class="feature-card fade-in">
-      <div class="feature-icon">📡</div>
-      <h3>No Internet Required</h3>
-      <p>Everything happens locally over Bluetooth. Your files never leave your devices.</p>
-    </div>
-    <div class="feature-card fade-in">
-      <div class="feature-icon">⚡</div>
-      <h3>Both Directions</h3>
-      <p>Send files from phone to laptop and from laptop to phone – fully bidirectional.</p>
-    </div>
-    <div class="feature-card fade-in">
-      <div class="feature-icon">📁</div>
-      <h3>Any File Type</h3>
-      <p>Photos, documents, videos, archives – transfer whatever you need without restrictions.</p>
-    </div>
-    <div class="feature-card fade-in">
-      <div class="feature-icon">🔒</div>
-      <h3>No Account Needed</h3>
-      <p>No login, no cloud, no tracking. Just pair your devices and go.</p>
-    </div>
-    <div class="feature-card fade-in">
-      <div class="feature-icon">🪶</div>
-      <h3>Lightweight</h3>
-      <p>One Python file per platform. No heavy dependencies, no installers, no background services.</p>
-    </div>
-    <div class="feature-card fade-in">
-      <div class="feature-icon">🖥️</div>
-      <h3>Desktop Icon</h3>
-      <p>Launch from your app drawer or taskbar like any other app – on both Linux and Windows.</p>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ── DEMO ── -->
-<section id="demo">
-  <p class="section-label fade-in">Interface</p>
-  <h2 class="section-title fade-in">Clean, <span>familiar</span> UI</h2>
-
-  <div class="demo-grid">
-
-    <!-- Linux/Windows mock -->
-    <div class="demo-card fade-in">
-      <div class="demo-screen">
-        <div class="mock-window">
-          <div class="mock-titlebar">
-            <div class="mock-dot" style="background:#ff5f57"></div>
-            <div class="mock-dot" style="background:#febc2e"></div>
-            <div class="mock-dot" style="background:#28c840"></div>
-            <span class="mock-title">📡 DaTra</span>
-          </div>
-          <div class="mock-tabs">
-            <div class="mock-tab active">Receive</div>
-            <div class="mock-tab">Send</div>
-          </div>
-          <div class="mock-body">
-            <div class="mock-label">SAVE LOCATION</div>
-            <div class="mock-field">📁  ~/Downloads/datra</div>
-            <div class="mock-btn blue">Choose Folder</div>
-            <div class="mock-label" style="margin-top:4px">STATUS</div>
-            <div class="mock-status">Status: Waiting for connection... (Port 3)</div>
-            <div class="mock-progress">
-              <div class="mock-progress-fill" style="width:0%"></div>
-            </div>
-            <div style="margin-top:10px">
-              <div class="mock-btn green">Start Receiving</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="demo-caption">
-        <h3>Desktop App – Linux & Windows</h3>
-        <p>Choose a folder, hit Start Receiving, and wait for your phone to connect.</p>
-      </div>
-    </div>
-
-    <!-- Send tab mock -->
-    <div class="demo-card fade-in">
-      <div class="demo-screen">
-        <div class="mock-window">
-          <div class="mock-titlebar">
-            <div class="mock-dot" style="background:#ff5f57"></div>
-            <div class="mock-dot" style="background:#febc2e"></div>
-            <div class="mock-dot" style="background:#28c840"></div>
-            <span class="mock-title">📡 DaTra</span>
-          </div>
-          <div class="mock-tabs">
-            <div class="mock-tab">Receive</div>
-            <div class="mock-tab active">Send</div>
-          </div>
-          <div class="mock-body">
-            <div class="mock-label">PAIRED DEVICES</div>
-            <div class="mock-field" style="color: var(--green)">  Samsung A35  [40:DE:24:C0:0A:40]</div>
-            <div class="mock-btn blue">🔄  Load Devices</div>
-            <div class="mock-label" style="margin-top:6px">FILE</div>
-            <div class="mock-field">📄  vacation_photo.jpg</div>
-            <div class="mock-status" style="margin-top:4px">Status: ✅ Sent: vacation_photo.jpg</div>
-            <div class="mock-progress" style="margin-top:6px">
-              <div class="mock-progress-fill" style="width:100%; background: var(--green)"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="demo-caption">
-        <h3>Send Tab – Laptop to Phone</h3>
-        <p>Select a paired device, pick a file, and send. Accept the notification on your phone.</p>
-      </div>
-    </div>
-
-    <!-- Android mock -->
-    <div class="demo-card fade-in">
-      <div class="demo-screen">
-        <div class="mock-android">
-          <div class="mock-android-status">9:41 &nbsp; ▲ ◉</div>
-          <div class="mock-android-header">📡 DaTra</div>
-          <div class="mock-android-body">
-            <div class="mock-android-section">📤 SEND</div>
-            <div class="mock-android-btn blue">Load Devices</div>
-            <div class="mock-android-list" style="color: var(--green); font-size:0.6rem">
-              Laptop [1C:99:57:AF:6F:DF]
-            </div>
-            <div class="mock-android-btn blue">Select File</div>
-            <div style="font-size:0.6rem; color:var(--subtext); margin-bottom:6px">📄 report.pdf</div>
-            <div class="mock-android-btn green">Send File</div>
-            <div class="mock-android-status-text">Status: ✅ Sent</div>
-          </div>
-        </div>
-      </div>
-      <div class="demo-caption">
-        <h3>Android App</h3>
-        <p>Load paired devices, pick a file, and send directly to your laptop.</p>
-      </div>
-    </div>
-
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ── HOW IT WORKS ── -->
-<section id="how">
-  <p class="section-label fade-in">Usage</p>
-  <h2 class="section-title fade-in">How it <span>works</span></h2>
-
-  <div class="steps">
-    <div class="step fade-in">
-      <div class="step-num">01</div>
-      <h3>Pair Devices</h3>
-      <p>Pair your phone and laptop via Bluetooth once in your system settings.</p>
-    </div>
-    <div class="step fade-in">
-      <div class="step-num">02</div>
-      <h3>Start App</h3>
-      <p>Open DaTra on your laptop and choose Receive or Send.</p>
-    </div>
-    <div class="step fade-in">
-      <div class="step-num">03</div>
-      <h3>Select File</h3>
-      <p>Pick the file you want to transfer on whichever device is sending.</p>
-    </div>
-    <div class="step fade-in">
-      <div class="step-num">04</div>
-      <h3>Done</h3>
-      <p>The file transfers instantly. No confirmation steps, no cloud sync delay.</p>
-    </div>
-  </div>
-</section>
-
-<div class="divider"></div>
-
-<!-- ── CTA ── -->
-<div class="cta-section">
-  <div class="cta-box fade-in">
-    <h2>Get DaTra</h2>
-    <p>Pick your platform and get started. No installation wizard, no account – just download and run.</p>
-
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:28px;">
-      <a href="https://github.com/releases/linux" target="_blank" class="btn btn-secondary" style="flex-direction:column; align-items:flex-start; gap:2px; padding:16px 20px;">
-        <img src="https://cdn.simpleicons.org/linux/cdd6f4" width="28" height="28" alt="Linux"/>
-        <span style="color:var(--blue); font-size:0.82rem; font-weight:700;">Linux</span>
-        <span style="color:var(--subtext); font-size:0.7rem; font-weight:400;">receiver.py</span>
-      </a>
-      <a href="https://github.com/releases/windows" target="_blank" class="btn btn-secondary" style="flex-direction:column; align-items:flex-start; gap:2px; padding:16px 20px;">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="#00adef" xmlns="http://www.w3.org/2000/svg"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.551H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
-        <span style="color:var(--blue); font-size:0.82rem; font-weight:700;">Windows</span>
-        <span style="color:var(--subtext); font-size:0.7rem; font-weight:400;">receiver_windows.py</span>
-      </a>
-      <a href="https://github.com/releases/apk" target="_blank" class="btn btn-secondary" style="flex-direction:column; align-items:flex-start; gap:2px; padding:16px 20px;">
-        <img src="https://cdn.simpleicons.org/android/a6e3a1" width="28" height="28" alt="Android"/>
-        <span style="color:var(--green); font-size:0.82rem; font-weight:700;">Android</span>
-        <span style="color:var(--subtext); font-size:0.7rem; font-weight:400;">DaTra.apk</span>
-      </a>
-    </div>
-
-    <a href="https://github.com" target="_blank" class="btn btn-primary" style="margin:0 auto;">
-      ↗ &nbsp;View on GitHub
-    </a>
-  </div>
-</div>
-
-<!-- ── FOOTER ── -->
-<footer>
-  <div class="logo">Da<span>Tra</span></div>
-  <p>Open source</p>
-  <p>Built with Python & Java</p>
-</footer>
-
-<script>
-  // Intersection Observer for fade-in animations
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry, i) => {
-      if (entry.isIntersecting) {
-        setTimeout(() => {
-          entry.target.classList.add('visible');
-        }, 80 * (entry.target.dataset.delay || 0));
-        observer.unobserve(entry.target);
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DaTra – Bluetooth File Transfer</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
       }
-    });
-  }, { threshold: 0.1 });
 
-  document.querySelectorAll('.fade-in').forEach((el, i) => {
-    el.dataset.delay = i % 4;
-    observer.observe(el);
-  });
-</script>
+      :root {
+        --bg: #1e1e2e;
+        --surface: #2a2a3e;
+        --blue: #89b4fa;
+        --green: #a6e3a1;
+        --text: #cdd6f4;
+        --subtext: #6c7086;
+        --border: #313244;
+      }
 
-</body>
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "JetBrains Mono", monospace;
+        overflow-x: hidden;
+      }
+
+      /* ── NOISE OVERLAY ── */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* ── NAV ── */
+      nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18px 48px;
+        background: rgba(30, 30, 46, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .nav-logo {
+        font-family: "Space Mono", monospace;
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--blue);
+        letter-spacing: 0.1em;
+      }
+
+      .nav-logo span {
+        color: var(--green);
+      }
+
+      nav a {
+        color: var(--subtext);
+        text-decoration: none;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        transition: color 0.2s;
+      }
+
+      nav a:hover {
+        color: var(--blue);
+      }
+
+      .nav-links {
+        display: flex;
+        gap: 32px;
+      }
+
+      /* ── HERO ── */
+      .hero {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 120px 24px 80px;
+        position: relative;
+      }
+
+      .hero-glow {
+        position: absolute;
+        width: 600px;
+        height: 600px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(137, 180, 250, 0.08) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 16px;
+        font-size: 0.72rem;
+        color: var(--subtext);
+        letter-spacing: 0.1em;
+        margin-bottom: 32px;
+      }
+
+      .hero-badge::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      .hero h1 {
+        font-family: "Space Mono", monospace;
+        font-size: clamp(3rem, 10vw, 6.5rem);
+        font-weight: 700;
+        color: var(--blue);
+        letter-spacing: -0.02em;
+        line-height: 1;
+        margin-bottom: 8px;
+      }
+
+      .hero h1 span {
+        color: var(--green);
+      }
+
+      .hero-sub {
+        font-size: clamp(0.8rem, 2vw, 1rem);
+        color: var(--subtext);
+        letter-spacing: 0.15em;
+        margin-bottom: 28px;
+        text-transform: uppercase;
+      }
+
+      .hero-desc {
+        max-width: 520px;
+        font-size: 0.92rem;
+        color: var(--text);
+        line-height: 1.8;
+        margin-bottom: 48px;
+        opacity: 0.85;
+      }
+
+      .hero-buttons {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 28px;
+        border-radius: 6px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-decoration: none;
+        transition: all 0.2s;
+        cursor: pointer;
+        border: none;
+      }
+
+      .btn-primary {
+        background: var(--blue);
+        color: var(--bg);
+      }
+
+      .btn-primary:hover {
+        background: #a0c4ff;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 24px rgba(137, 180, 250, 0.25);
+      }
+
+      .btn-secondary {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+
+      .btn-secondary:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+        transform: translateY(-1px);
+      }
+
+      /* ── SCROLL INDICATOR ── */
+      .scroll-hint {
+        position: absolute;
+        bottom: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        color: var(--subtext);
+        font-size: 0.7rem;
+        letter-spacing: 0.1em;
+        animation: fadeUp 1s ease 1s both;
+      }
+
+      .scroll-line {
+        width: 1px;
+        height: 40px;
+        background: linear-gradient(to bottom, var(--subtext), transparent);
+        animation: grow 1.5s ease infinite;
+      }
+
+      @keyframes grow {
+        0% {
+          transform: scaleY(0);
+          transform-origin: top;
+        }
+        50% {
+          transform: scaleY(1);
+          transform-origin: top;
+        }
+        51% {
+          transform: scaleY(1);
+          transform-origin: bottom;
+        }
+        100% {
+          transform: scaleY(0);
+          transform-origin: bottom;
+        }
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* ── SECTION SHARED ── */
+      section {
+        position: relative;
+        z-index: 1;
+        padding: 100px 24px;
+        max-width: 1100px;
+        margin: 0 auto;
+      }
+
+      .section-label {
+        font-size: 0.7rem;
+        letter-spacing: 0.2em;
+        color: var(--blue);
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+
+      .section-title {
+        font-family: "Space Mono", monospace;
+        font-size: clamp(1.6rem, 4vw, 2.4rem);
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 48px;
+        line-height: 1.2;
+      }
+
+      .section-title span {
+        color: var(--green);
+      }
+
+      /* ── FEATURES ── */
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }
+
+      .feature-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 28px 24px;
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+
+      .feature-card:hover {
+        border-color: var(--blue);
+        transform: translateY(-3px);
+      }
+
+      .feature-icon {
+        font-size: 1.6rem;
+        margin-bottom: 16px;
+      }
+
+      .feature-card h3 {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--blue);
+        margin-bottom: 8px;
+        letter-spacing: 0.05em;
+      }
+
+      .feature-card p {
+        font-size: 0.8rem;
+        color: var(--subtext);
+        line-height: 1.7;
+      }
+
+      /* ── DEMO ── */
+      .demo-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 24px;
+      }
+
+      .demo-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: border-color 0.2s;
+      }
+
+      .demo-card:hover {
+        border-color: var(--blue);
+      }
+
+      .demo-screen {
+        background: var(--bg);
+        padding: 24px;
+        min-height: 220px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-bottom: 1px solid var(--border);
+        position: relative;
+      }
+
+      /* Simulated app window */
+      .mock-window {
+        width: 100%;
+        max-width: 320px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        overflow: hidden;
+        font-size: 0.72rem;
+      }
+
+      .mock-titlebar {
+        background: #1a1a2e;
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .mock-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+      }
+
+      .mock-title {
+        margin-left: 8px;
+        color: var(--subtext);
+        font-size: 0.68rem;
+        letter-spacing: 0.05em;
+      }
+
+      .mock-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .mock-tab {
+        padding: 7px 16px;
+        font-size: 0.68rem;
+        color: var(--subtext);
+        border-right: 1px solid var(--border);
+      }
+
+      .mock-tab.active {
+        background: var(--blue);
+        color: var(--bg);
+        font-weight: 700;
+      }
+
+      .mock-body {
+        padding: 14px;
+      }
+
+      .mock-label {
+        font-size: 0.6rem;
+        color: var(--subtext);
+        letter-spacing: 0.08em;
+        margin-bottom: 5px;
+      }
+
+      .mock-field {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 7px 10px;
+        color: var(--subtext);
+        font-size: 0.68rem;
+        margin-bottom: 10px;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .mock-btn {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 4px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        font-family: "JetBrains Mono", monospace;
+        margin-bottom: 10px;
+      }
+
+      .mock-btn.blue {
+        background: var(--blue);
+        color: var(--bg);
+      }
+      .mock-btn.green {
+        background: var(--green);
+        color: var(--bg);
+      }
+
+      .mock-status {
+        font-size: 0.65rem;
+        color: var(--green);
+        padding: 4px 0;
+      }
+
+      .mock-progress {
+        height: 5px;
+        background: var(--border);
+        border-radius: 999px;
+        overflow: hidden;
+        margin-top: 6px;
+      }
+
+      .mock-progress-fill {
+        height: 100%;
+        background: var(--blue);
+        border-radius: 999px;
+      }
+
+      /* Android mock */
+      .mock-android {
+        width: 160px;
+        background: var(--surface);
+        border: 2px solid var(--border);
+        border-radius: 20px;
+        overflow: hidden;
+        font-size: 0.65rem;
+        box-shadow: 0 0 0 6px #111122;
+      }
+
+      .mock-android-status {
+        background: #111122;
+        padding: 8px 12px 4px;
+        font-size: 0.55rem;
+        color: var(--subtext);
+        text-align: right;
+      }
+
+      .mock-android-header {
+        background: var(--blue);
+        color: var(--bg);
+        font-weight: 700;
+        font-size: 0.72rem;
+        padding: 10px 12px;
+        letter-spacing: 0.05em;
+      }
+
+      .mock-android-body {
+        padding: 12px;
+      }
+
+      .mock-android-section {
+        font-size: 0.6rem;
+        color: var(--blue);
+        letter-spacing: 0.1em;
+        margin-bottom: 6px;
+        font-weight: 700;
+      }
+
+      .mock-android-btn {
+        display: block;
+        width: 100%;
+        padding: 6px;
+        border-radius: 4px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        text-align: center;
+        margin-bottom: 6px;
+        font-family: "JetBrains Mono", monospace;
+      }
+
+      .mock-android-btn.blue {
+        background: var(--blue);
+        color: var(--bg);
+      }
+      .mock-android-btn.green {
+        background: var(--green);
+        color: var(--bg);
+      }
+
+      .mock-android-list {
+        background: var(--bg);
+        border-radius: 4px;
+        padding: 5px 7px;
+        color: var(--subtext);
+        font-size: 0.58rem;
+        margin-bottom: 6px;
+        min-height: 28px;
+      }
+
+      .mock-android-status-text {
+        font-size: 0.58rem;
+        color: var(--green);
+      }
+
+      .demo-caption {
+        padding: 16px 20px;
+      }
+
+      .demo-caption h3 {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 4px;
+      }
+
+      .demo-caption p {
+        font-size: 0.75rem;
+        color: var(--subtext);
+        line-height: 1.6;
+      }
+
+      /* ── PLATFORMS ── */
+      .platforms {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+
+      .platform-pill {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 14px 20px;
+        flex: 1;
+        min-width: 160px;
+        transition: border-color 0.2s;
+      }
+
+      .platform-pill:hover {
+        border-color: var(--green);
+      }
+
+      .platform-pill span:first-child {
+        font-size: 1.4rem;
+      }
+
+      .platform-pill-text {
+        font-size: 0.8rem;
+        color: var(--text);
+        font-weight: 600;
+      }
+      .platform-pill-sub {
+        font-size: 0.68rem;
+        color: var(--subtext);
+      }
+
+      /* ── HOW IT WORKS ── */
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0;
+        position: relative;
+      }
+
+      .steps::before {
+        content: "";
+        position: absolute;
+        top: 28px;
+        left: 5%;
+        right: 5%;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          var(--border),
+          var(--border),
+          transparent
+        );
+      }
+
+      .step {
+        padding: 0 16px;
+        text-align: center;
+      }
+
+      .step-num {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--surface);
+        border: 1px solid var(--blue);
+        color: var(--blue);
+        font-family: "Space Mono", monospace;
+        font-size: 1.1rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 16px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .step h3 {
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--text);
+        margin-bottom: 6px;
+      }
+
+      .step p {
+        font-size: 0.74rem;
+        color: var(--subtext);
+        line-height: 1.6;
+      }
+
+      /* ── CTA ── */
+      .cta-section {
+        text-align: center;
+        padding: 100px 24px;
+        position: relative;
+        z-index: 1;
+      }
+
+      .cta-box {
+        max-width: 600px;
+        margin: 0 auto;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 56px 40px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .cta-box::before {
+        content: "";
+        position: absolute;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 300px;
+        height: 300px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(137, 180, 250, 0.1) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+      }
+
+      .cta-box h2 {
+        font-family: "Space Mono", monospace;
+        font-size: 1.8rem;
+        color: var(--text);
+        margin-bottom: 12px;
+      }
+
+      .cta-box p {
+        color: var(--subtext);
+        font-size: 0.85rem;
+        margin-bottom: 32px;
+        line-height: 1.7;
+      }
+
+      /* ── FOOTER ── */
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 32px 48px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        position: relative;
+        z-index: 1;
+        gap: 8px;
+      }
+
+      footer .logo {
+        font-family: "Space Mono", monospace;
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--blue);
+      }
+
+      footer .logo span {
+        color: var(--green);
+      }
+
+      footer p {
+        font-size: 0.72rem;
+        color: var(--subtext);
+      }
+
+      /* ── DIVIDER ── */
+      .divider {
+        width: 100%;
+        height: 1px;
+        background: linear-gradient(
+          to right,
+          transparent,
+          var(--border),
+          transparent
+        );
+        position: relative;
+        z-index: 1;
+      }
+
+      /* ── ANIMATIONS ── */
+      .fade-in {
+        opacity: 0;
+        transform: translateY(24px);
+        transition:
+          opacity 0.6s ease,
+          transform 0.6s ease;
+      }
+
+      .fade-in.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 600px) {
+        nav {
+          padding: 16px 20px;
+        }
+        .nav-links {
+          gap: 20px;
+        }
+        .steps::before {
+          display: none;
+        }
+        footer {
+          flex-direction: column;
+          text-align: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ── NAV ── -->
+    <nav>
+      <div class="nav-logo">Da<span>Tra</span></div>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#how">How it works</a>
+        <a href="https://github.com/RealDeMa/DaTra-Opensource" target="_blank"
+          >GitHub ↗</a
+        >
+      </div>
+    </nav>
+
+    <!-- ── HERO ── -->
+    <div class="hero">
+      <div class="hero-glow"></div>
+
+      <div class="hero-badge">Open Source · No Cloud · No Account</div>
+
+      <h1>Da<span>Tra</span></h1>
+      <p class="hero-sub">Bluetooth File Transfer</p>
+
+      <p class="hero-desc">
+        Transfer files between your Android phone and your laptop directly over
+        Bluetooth. No internet connection, no third-party services, no setup
+        hassle.
+      </p>
+
+      <div class="hero-buttons">
+        <a
+          href="https://github.com/RealDeMa/DaTra-Opensource"
+          target="_blank"
+          class="btn btn-primary"
+        >
+          ↓ &nbsp;Download
+        </a>
+        <a href="#demo" class="btn btn-secondary"> View Demo </a>
+      </div>
+
+      <div class="scroll-hint">
+        <div class="scroll-line"></div>
+        scroll
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ── PLATFORMS ── -->
+    <section style="padding-top: 80px; padding-bottom: 60px">
+      <p class="section-label fade-in">Platforms</p>
+      <div class="platforms fade-in">
+        <div class="platform-pill">
+          <img
+            src="https://cdn.simpleicons.org/linux/cdd6f4"
+            width="32"
+            height="32"
+            alt="Linux"
+          />
+          <div>
+            <div class="platform-pill-text">Linux</div>
+            <div class="platform-pill-sub">Python + Tkinter</div>
+          </div>
+        </div>
+        <div class="platform-pill">
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            fill="#00adef"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.551H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"
+            />
+          </svg>
+          <div>
+            <div class="platform-pill-text">Windows</div>
+            <div class="platform-pill-sub">Python + Tkinter</div>
+          </div>
+        </div>
+        <div class="platform-pill">
+          <img
+            src="https://cdn.simpleicons.org/android/a6e3a1"
+            width="32"
+            height="32"
+            alt="Android"
+          />
+          <div>
+            <div class="platform-pill-text">Android</div>
+            <div class="platform-pill-sub">Java · APK ready</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── FEATURES ── -->
+    <section id="features">
+      <p class="section-label fade-in">Features</p>
+      <h2 class="section-title fade-in">Simple by <span>design</span></h2>
+
+      <div class="features-grid">
+        <div class="feature-card fade-in">
+          <div class="feature-icon">📡</div>
+          <h3>No Internet Required</h3>
+          <p>
+            Everything happens locally over Bluetooth. Your files never leave
+            your devices.
+          </p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">⚡</div>
+          <h3>Both Directions</h3>
+          <p>
+            Send files from phone to laptop and from laptop to phone – fully
+            bidirectional.
+          </p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">📁</div>
+          <h3>Any File Type</h3>
+          <p>
+            Photos, documents, videos, archives – transfer whatever you need
+            without restrictions.
+          </p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🔒</div>
+          <h3>No Account Needed</h3>
+          <p>No login, no cloud, no tracking. Just pair your devices and go.</p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🪶</div>
+          <h3>Lightweight</h3>
+          <p>
+            One Python file per platform. No heavy dependencies, no installers,
+            no background services.
+          </p>
+        </div>
+        <div class="feature-card fade-in">
+          <div class="feature-icon">🖥️</div>
+          <h3>Desktop Icon</h3>
+          <p>
+            Launch from your app drawer or taskbar like any other app – on both
+            Linux and Windows.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── DEMO ── -->
+    <section id="demo">
+      <p class="section-label fade-in">Interface</p>
+      <h2 class="section-title fade-in">Clean, <span>familiar</span> UI</h2>
+
+      <div class="demo-grid">
+        <!-- Linux/Windows mock -->
+        <div class="demo-card fade-in">
+          <div class="demo-screen">
+            <div class="mock-window">
+              <div class="mock-titlebar">
+                <div class="mock-dot" style="background: #ff5f57"></div>
+                <div class="mock-dot" style="background: #febc2e"></div>
+                <div class="mock-dot" style="background: #28c840"></div>
+                <span class="mock-title">📡 DaTra</span>
+              </div>
+              <div class="mock-tabs">
+                <div class="mock-tab active">Receive</div>
+                <div class="mock-tab">Send</div>
+              </div>
+              <div class="mock-body">
+                <div class="mock-label">SAVE LOCATION</div>
+                <div class="mock-field">📁 ~/Downloads/datra</div>
+                <div class="mock-btn blue">Choose Folder</div>
+                <div class="mock-label" style="margin-top: 4px">STATUS</div>
+                <div class="mock-status">
+                  Status: Waiting for connection... (Port 3)
+                </div>
+                <div class="mock-progress">
+                  <div class="mock-progress-fill" style="width: 0%"></div>
+                </div>
+                <div style="margin-top: 10px">
+                  <div class="mock-btn green">Start Receiving</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-caption">
+            <h3>Desktop App – Linux & Windows</h3>
+            <p>
+              Choose a folder, hit Start Receiving, and wait for your phone to
+              connect.
+            </p>
+          </div>
+        </div>
+
+        <!-- Send tab mock -->
+        <div class="demo-card fade-in">
+          <div class="demo-screen">
+            <div class="mock-window">
+              <div class="mock-titlebar">
+                <div class="mock-dot" style="background: #ff5f57"></div>
+                <div class="mock-dot" style="background: #febc2e"></div>
+                <div class="mock-dot" style="background: #28c840"></div>
+                <span class="mock-title">📡 DaTra</span>
+              </div>
+              <div class="mock-tabs">
+                <div class="mock-tab">Receive</div>
+                <div class="mock-tab active">Send</div>
+              </div>
+              <div class="mock-body">
+                <div class="mock-label">PAIRED DEVICES</div>
+                <div class="mock-field" style="color: var(--green)">
+                  Samsung A35 [40:DE:24:C0:0A:40]
+                </div>
+                <div class="mock-btn blue">🔄 Load Devices</div>
+                <div class="mock-label" style="margin-top: 6px">FILE</div>
+                <div class="mock-field">📄 vacation_photo.jpg</div>
+                <div class="mock-status" style="margin-top: 4px">
+                  Status: ✅ Sent: vacation_photo.jpg
+                </div>
+                <div class="mock-progress" style="margin-top: 6px">
+                  <div
+                    class="mock-progress-fill"
+                    style="width: 100%; background: var(--green)"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-caption">
+            <h3>Send Tab – Laptop to Phone</h3>
+            <p>
+              Select a paired device, pick a file, and send. Accept the
+              notification on your phone.
+            </p>
+          </div>
+        </div>
+
+        <!-- Android mock -->
+        <div class="demo-card fade-in">
+          <div class="demo-screen">
+            <div class="mock-android">
+              <div class="mock-android-status">9:41 &nbsp; ▲ ◉</div>
+              <div class="mock-android-header">📡 DaTra</div>
+              <div class="mock-android-body">
+                <div class="mock-android-section">📤 SEND</div>
+                <div class="mock-android-btn blue">Load Devices</div>
+                <div
+                  class="mock-android-list"
+                  style="color: var(--green); font-size: 0.6rem"
+                >
+                  Laptop [1C:99:57:AF:6F:DF]
+                </div>
+                <div class="mock-android-btn blue">Select File</div>
+                <div
+                  style="
+                    font-size: 0.6rem;
+                    color: var(--subtext);
+                    margin-bottom: 6px;
+                  "
+                >
+                  📄 report.pdf
+                </div>
+                <div class="mock-android-btn green">Send File</div>
+                <div class="mock-android-status-text">Status: ✅ Sent</div>
+              </div>
+            </div>
+          </div>
+          <div class="demo-caption">
+            <h3>Android App</h3>
+            <p>
+              Load paired devices, pick a file, and send directly to your
+              laptop.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── HOW IT WORKS ── -->
+    <section id="how">
+      <p class="section-label fade-in">Usage</p>
+      <h2 class="section-title fade-in">How it <span>works</span></h2>
+
+      <div class="steps">
+        <div class="step fade-in">
+          <div class="step-num">01</div>
+          <h3>Pair Devices</h3>
+          <p>
+            Pair your phone and laptop via Bluetooth once in your system
+            settings.
+          </p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-num">02</div>
+          <h3>Start App</h3>
+          <p>Open DaTra on your laptop and choose Receive or Send.</p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-num">03</div>
+          <h3>Select File</h3>
+          <p>
+            Pick the file you want to transfer on whichever device is sending.
+          </p>
+        </div>
+        <div class="step fade-in">
+          <div class="step-num">04</div>
+          <h3>Done</h3>
+          <p>
+            The file transfers instantly. No confirmation steps, no cloud sync
+            delay.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <div class="divider"></div>
+
+    <!-- ── CTA ── -->
+    <div class="cta-section">
+      <div class="cta-box fade-in">
+        <h2>Get DaTra</h2>
+        <p>
+          Pick your platform and get started. No installation wizard, no account
+          – just download and run.
+        </p>
+
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 28px;
+          "
+        >
+          <a
+            target="_blank"
+            class="btn btn-secondary"
+            style="
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 2px;
+              padding: 16px 20px;
+            "
+          >
+            <img
+              src="https://cdn.simpleicons.org/linux/cdd6f4"
+              width="28"
+              height="28"
+              alt="Linux"
+            />
+            <span
+              style="color: var(--blue); font-size: 0.82rem; font-weight: 700"
+              >Linux</span
+            >
+            <span
+              style="color: var(--subtext); font-size: 0.7rem; font-weight: 400"
+              >receiver.py</span
+            >
+          </a>
+          <a
+            target="_blank"
+            class="btn btn-secondary"
+            style="
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 2px;
+              padding: 16px 20px;
+            "
+          >
+            <svg
+              width="28"
+              height="28"
+              viewBox="0 0 24 24"
+              fill="#00adef"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.551H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"
+              />
+            </svg>
+            <span
+              style="color: var(--blue); font-size: 0.82rem; font-weight: 700"
+              >Windows</span
+            >
+            <span
+              style="color: var(--subtext); font-size: 0.7rem; font-weight: 400"
+              >receiver_windows.py</span
+            >
+          </a>
+          <a
+            target="_blank"
+            class="btn btn-secondary"
+            style="
+              flex-direction: column;
+              align-items: flex-start;
+              gap: 2px;
+              padding: 16px 20px;
+            "
+          >
+            <img
+              src="https://cdn.simpleicons.org/android/a6e3a1"
+              width="28"
+              height="28"
+              alt="Android"
+            />
+            <span
+              style="color: var(--green); font-size: 0.82rem; font-weight: 700"
+              >Android</span
+            >
+            <span
+              style="color: var(--subtext); font-size: 0.7rem; font-weight: 400"
+              >DaTra.apk</span
+            >
+          </a>
+        </div>
+
+        <a
+          href="https://github.com/RealDeMa/DaTra-Opensource"
+          target="_blank"
+          class="btn btn-primary"
+          style="margin: 0 auto"
+        >
+          ↗ &nbsp;View on GitHub
+        </a>
+      </div>
+    </div>
+
+    <!-- ── FOOTER ── -->
+    <footer>
+      <div class="logo">Da<span>Tra</span></div>
+      <p>Open source</p>
+      <p>Built with Python & Java</p>
+    </footer>
+
+    <script>
+      // Intersection Observer for fade-in animations
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry, i) => {
+            if (entry.isIntersecting) {
+              setTimeout(
+                () => {
+                  entry.target.classList.add("visible");
+                },
+                80 * (entry.target.dataset.delay || 0),
+              );
+              observer.unobserve(entry.target);
+            }
+          });
+        },
+        { threshold: 0.1 },
+      );
+
+      document.querySelectorAll(".fade-in").forEach((el, i) => {
+        el.dataset.delay = i % 4;
+        observer.observe(el);
+      });
+    </script>
+  </body>
 </html>
