@@ -10,7 +10,24 @@ import os
 # ──────────────────────────────────────────
 AF_BLUETOOTH   = 31
 BTPROTO_RFCOMM = 3
-LAPTOP_MAC     = "1C:99:57:AF:6F:DF"
+
+def get_local_mac():
+    """Automatically detect the Bluetooth MAC address of this machine."""
+    try:
+        result = subprocess.run(
+            ["bluetoothctl", "show"],
+            capture_output=True, text=True, timeout=5
+        )
+        for line in result.stdout.splitlines():
+            if "Controller" in line:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    return parts[1]
+    except Exception:
+        pass
+    return ""
+
+LAPTOP_MAC = get_local_mac()
 
 # ──────────────────────────────────────────
 #  State
@@ -25,6 +42,12 @@ send_file      = {"path": "", "name": ""}
 def bluetooth_receive():
     receive_active["active"] = True
     start_button.config(state="disabled", text="Receiving...")
+
+    if not LAPTOP_MAC:
+        set_receive_status("❌ Bluetooth MAC not found. Is Bluetooth enabled?")
+        receive_active["active"] = False
+        start_button.config(state="normal", text="Start Receiving")
+        return
 
     try:
         server_sock  = None
@@ -200,7 +223,7 @@ def clear_list():
 #  Window & UI
 # ──────────────────────────────────────────
 window = tk.Tk()
-window.title("📡 Bluetooth File Transfer")
+window.title("📡 DaTra")
 window.geometry("560x540")
 window.resizable(False, False)
 window.configure(bg="#1e1e2e")
@@ -219,7 +242,7 @@ GREEN   = "#a6e3a1"
 TEXT    = "#cdd6f4"
 SUBTEXT = "#6c7086"
 
-tk.Label(window, text="Bluetooth File Transfer",
+tk.Label(window, text="DaTra",
          bg=BG, fg=ACCENT, font=("Courier New", 16, "bold")).pack(pady=(18, 3))
 tk.Label(window, text="Linux  •  native socket + Tkinter",
          bg=BG, fg=SUBTEXT, font=("Courier New", 9)).pack(pady=(0, 10))
