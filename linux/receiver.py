@@ -43,7 +43,7 @@ def bluetooth_receive():
     start_button.config(state="disabled", text="Receiving...")
 
     if not LAPTOP_MAC:
-        set_receive_status("❌ Bluetooth MAC not found. Is Bluetooth enabled?")
+        set_receive_status("Bluetooth MAC not found. Is Bluetooth enabled?")
         receive_active["active"] = False
         start_button.config(state="normal", text="Start Receiving")
         return
@@ -59,13 +59,14 @@ def bluetooth_receive():
                 server_sock.listen(1)
                 found_port = port
                 break
-            except Exception:
+            except Exception as e:
+                print(f"Port {port} failed: {e}")
                 if server_sock:
                     server_sock.close()
                 server_sock = None
 
         if server_sock is None:
-            set_receive_status("❌ No free Bluetooth port found!")
+            set_receive_status("No free Bluetooth port found!")
             return
 
         files_received = [0]
@@ -95,9 +96,9 @@ def bluetooth_receive():
                 progress_receive["value"] = 100
                 files_received[0] += 1
                 file_list.insert(tk.END, f"✔  {filename}  ({received_bytes // 1024} KB)")
-                set_receive_status(f"✅ Saved: {filename}  –  {files_received[0]} file(s) received")
+                set_receive_status(f"Saved: {filename}  –  {files_received[0]} file(s) received")
             except Exception as error:
-                set_receive_status(f"❌ Error: {error}")
+                set_receive_status(f"Error: {error}")
             finally:
                 try:
                     sock.close()
@@ -124,7 +125,7 @@ def bluetooth_receive():
             pass
 
     except Exception as error:
-        set_receive_status(f"❌ Error: {error}")
+        set_receive_status(f"Error: {error}")
     finally:
         receive_active["active"] = False
         start_button.config(state="normal", text="Start Receiving")
@@ -135,11 +136,11 @@ def bluetooth_receive():
 # ──────────────────────────────────────────
 def bluetooth_send():
     if not send_files["paths"]:
-        set_send_status("⚠️  Please select files first!")
+        set_send_status("Please select files first!")
         return
     selection = device_listbox.curselection()
     if not selection:
-        set_send_status("⚠️  Please select a device first!")
+        set_send_status("Please select a device first!")
         return
 
     mac   = paired_devices[selection[0]]["mac"]
@@ -163,20 +164,20 @@ def bluetooth_send():
                     import time; time.sleep(2)
                 else:
                     err = result.stderr.strip() or result.stdout.strip()
-                    set_send_status(f"❌ Error on {name}: {err}")
+                    set_send_status(f"Error on {name}: {err}")
                     send_button.config(state="normal", text="Send Files")
                     return
             except subprocess.TimeoutExpired:
-                set_send_status(f"❌ Timeout – Accept the file on your phone!")
+                set_send_status(f"Timeout – Accept the file on your phone!")
                 send_button.config(state="normal", text="Send Files")
                 return
             except Exception as e:
-                set_send_status(f"❌ Error: {e}")
+                set_send_status(f"Error: {e}")
                 send_button.config(state="normal", text="Send Files")
                 return
 
         progress_send["value"] = 100
-        set_send_status(f"✅ Done – {total} file(s) sent.")
+        set_send_status(f"Done – {total} file(s) sent.")
         send_button.config(state="normal", text="Send Files")
 
     threading.Thread(target=send_thread, daemon=True).start()
@@ -188,9 +189,9 @@ def select_files():
         send_files["paths"] = list(paths)
         send_files["names"] = [os.path.basename(p) for p in paths]
         if len(paths) == 1:
-            file_label.config(text=f"📄  {send_files['names'][0]}")
+            file_label.config(text=f"{send_files['names'][0]}")
         else:
-            file_label.config(text=f"📦  {len(paths)} files selected")
+            file_label.config(text=f"{len(paths)} files selected")
 
 
 def load_devices():
@@ -229,14 +230,14 @@ def choose_folder():
     folder = filedialog.askdirectory(title="Choose Save Folder")
     if folder:
         save_location["path"] = folder
-        folder_label.config(text=f"📁  {folder}")
+        folder_label.config(text=f"{folder}")
 
 def start_receiving():
     if save_location["path"] == "":
-        set_receive_status("⚠️  Please choose a folder first!")
+        set_receive_status("Please choose a folder first!")
         return
     if receive_active["active"]:
-        set_receive_status("⚠️  Already receiving!")
+        set_receive_status("Already receiving!")
         return
     threading.Thread(target=bluetooth_receive, daemon=True).start()
 
@@ -254,7 +255,7 @@ def clear_list():
 #  Window & UI
 # ──────────────────────────────────────────
 window = tk.Tk()
-window.title("📡 DaTra")
+window.title("DaTra")
 window.geometry("680x700")
 window.resizable(True, True)
 window.configure(bg="#1e1e2e")
