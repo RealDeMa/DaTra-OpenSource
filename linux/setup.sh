@@ -46,15 +46,16 @@ install_deps() {
 # ──────────────────────────────────────────
 #  Python-Interpreter finden
 # ──────────────────────────────────────────
+
 find_python() {
-    for candidate in python3.14 python3.13 python3.12 python3; do
-        if command -v "$candidate" >/dev/null 2>&1; then
-            PYTHON_BIN="$(command -v "$candidate")"
+    for candidate in /usr/bin/python3 /usr/bin/python3.14 /usr/bin/python3.13 /usr/bin/python3.12; do
+        if [ -x "$candidate" ]; then
+            PYTHON_BIN="$candidate"
             return
         fi
     done
-    echo "Error: Kein Python 3 gefunden."
-    exit 1
+    # Fallback: irgendein python3 im PATH
+    PYTHON_BIN="$(command -v python3)" || { echo "Error: Kein Python 3 gefunden."; exit 1; }
 }
 
 # ──────────────────────────────────────────
